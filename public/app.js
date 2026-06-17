@@ -82,6 +82,7 @@ async function showApp() {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-display').textContent = user ? user.email : '';
+  setTimeout(() => map.invalidateSize(), 100);
   loadDevices();
   loadGeofences();
 }
