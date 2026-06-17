@@ -1,23 +1,20 @@
 const path = require('path');
-const isPG = !!process.env.DATABASE_URL;
 
-function pgParams(sql, params) {
-  let idx = 0;
-  const converted = sql.replace(/\?/g, () => `$${++idx}`);
-  return { sql: converted, params };
-}
+const DATABASE_URL = process.env.DATABASE_URL || process.env.PGDATABASE_URL || '';
+const isPG = !!(DATABASE_URL || process.env.PGHOST || process.env.PGUSER);
 
 let db;
 
 if (isPG) {
   const { Pool } = require('pg');
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new Pool({ connectionString: DATABASE_URL || undefined });
 
   async function query(sql, params = []) {
     const c = await pool.connect();
     try {
-      const q = pgParams(sql, params);
-      return await c.query(q.sql, q.params);
+      let idx = 0;
+      const pgSql = sql.replace(/\?/g, () => `$${++idx}`);
+      return await c.query(pgSql, params);
     } finally {
       c.release();
     }
@@ -40,8 +37,8 @@ if (isPG) {
     insert: async (table, cols, values, constraint) => {
       const ph = values.map(() => '?').join(',');
       const c = constraint ? ` ON CONFLICT ${constraint} DO NOTHING` : '';
-      const q = pgParams(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${ph})${c} RETURNING *`, values);
-      const res = await query(q.sql, q.params);
+      const q = `INSERT INTO ${table} (${cols.join(',')}) VALUES (${ph})${c} RETURNING *`;
+      const res = await query(q, values);
       return { id: res.rows[0]?.id ?? null, row: res.rows[0] || null };
     },
   };
@@ -61,7 +58,14 @@ if (isPG) {
     }
   })();
 } else {
-  const Database = require('better-sqlite3');
+  let Database;
+  try {
+    Database = require('better-sqlite3');
+  } catch {
+    console.error('[db] better-sqlite3 not found. Set DATABASE_URL for PostgreSQL or install better-sqlite3.');
+    process.exit(1);
+  }
+
   const sqlite = new Database(path.join(__dirname, '..', 'data.db'));
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
@@ -85,8 +89,8 @@ if (isPG) {
     insert: (table, cols, values, constraint) => {
       const ph = values.map(() => '?').join(',');
       const conflict = constraint ? ` ON CONFLICT ${constraint}` : '';
-      const sql = `INSERT${conflict ? ' OR IGNORE' : ''} INTO ${table} (${cols.join(',')}) VALUES (${ph})`;
-      const r = sqlite.prepare(sql).run(...values);
+      const q = `INSERT${conflict ? ' OR IGNORE' : ''} INTO ${table} (${cols.join(',')}) VALUES (${ph})`;
+      const r = sqlite.prepare(q).run(...values);
       if (!r.changes) return { id: null, row: null };
       const row = sqlite.prepare(`SELECT * FROM ${table} WHERE rowid = ?`).get(r.lastInsertRowid);
       return { id: r.lastInsertRowid, row };
