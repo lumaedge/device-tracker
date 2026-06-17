@@ -6,10 +6,7 @@ const markers = {};
 const historyLines = {};
 const geofenceCircles = {};
 
-const map = L.map('map').setView([20, 0], 2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+let map = null;
 
 const socket = io();
 
@@ -82,7 +79,14 @@ async function showApp() {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-display').textContent = user ? user.email : '';
-  setTimeout(() => map.invalidateSize(), 100);
+  if (!map) {
+    map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  } else {
+    map.invalidateSize();
+  }
   loadDevices();
   loadGeofences();
 }
