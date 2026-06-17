@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="auth-screen">
+    <div class="auth-box">
+      <h1>Device Tracker</h1>
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Login</button>
+        <button class="tab" data-tab="register">Register</button>
+      </div>
+      <form id="auth-form">
+        <input id="auth-name" type="text" placeholder="Name" class="hidden-input" />
+        <input id="auth-email" type="email" placeholder="Email" required />
+        <input id="auth-password" type="password" placeholder="Password" required />
+        <p id="auth-error" class="error"></p>
+        <button type="submit" id="auth-submit">Login</button>
+      </form>
+      <p class="demo-note">Demo: just register with any email</p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>Device Tracker</h1>
+      <div class="controls">
+        <span id="user-display"></span>
+        <button id="btn-center">Center Map</button>
+        <button id="btn-simulate">Simulate Device</button>
+        <button id="btn-geofence">+ Geofence</button>
+        <button id="btn-logout">Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="map"></div>
+      <aside id="sidebar">
+        <h2>Devices</h2>
+        <ul id="device-list"></ul>
+        <div id="device-detail" class="hidden">
+          <h3 id="detail-name"></h3>
+          <div id="detail-info"></div>
+          <button id="btn-playback">Play History</button>
+          <h4>Location History</h4>
+          <ul id="history-list"></ul>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="geofence-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>New Geofence</h2>
+      <form id="geofence-form">
+        <input id="gf-name" placeholder="Name (e.g. Home)" required />
+        <input id="gf-lat" placeholder="Latitude" required />
+        <input id="gf-lng" placeholder="Longitude" required />
+        <input id="gf-radius" type="number" placeholder="Radius (meters)" value="100" />
+        <label><input id="gf-entry" type="checkbox" checked /> Alert on entry</label>
+        <label><input id="gf-exit" type="checkbox" /> Alert on exit</label>
+        <div class="modal-buttons">
+          <button type="submit">Create</button>
+          <button type="button" id="gf-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
