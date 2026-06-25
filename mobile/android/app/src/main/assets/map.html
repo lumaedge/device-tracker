@@ -14,53 +14,33 @@ html,body{height:100%;background:#1a1a2e}
 <div id="map"></div>
 <script src="https://device-tracker-production-c455.up.railway.app/vendor/leaflet.js"></script>
 <script>
-var API='https://device-tracker-production-c455.up.railway.app';
 var map=L.map('map',{zoomControl:false}).setView([20,0],2);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OSM'}).addTo(map);
-var markers={},circles={},myMarker=null,deviceId=null,token=null,watchId=null;
+var markers={},circles={},myMarker=null;
 
 window.addEventListener('message',function(e){
   try{
     var d=JSON.parse(e.data);
     if(d.type==='init'){
-      deviceId=d.deviceId;
-      token=d.token;
       if(d.devices)updateDevices(d.devices);
       if(d.geofences)updateGeofences(d.geofences);
-    }else if(d.type==='startTracking'){
-      startGps();
-    }else if(d.type==='stopTracking'){
-      if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
+    }else if(d.type==='myLocation'){
+      if(myMarker){
+        myMarker.setLatLng([d.latitude,d.longitude]);
+      }else{
+        myMarker=L.marker([d.latitude,d.longitude],{
+          icon:L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:#4fc3f7;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.5)"></div>',iconSize:[18,18],iconAnchor:[9,9]})
+        }).addTo(map).bindPopup('<b>My Device</b>');
+      }
+      map.setView([d.latitude,d.longitude],15);
     }
   }catch(_){}
 });
 
-function startGps(){
-  if(watchId!=null)return;
-  watchId=navigator.geolocation.watchPosition(function(pos){
-    var lat=pos.coords.latitude,lng=pos.coords.longitude,acc=pos.coords.accuracy,spd=pos.coords.speed,bat=null;
-    if(myMarker){
-      myMarker.setLatLng([lat,lng]);
-    }else{
-      myMarker=L.marker([lat,lng],{
-        icon:L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:#4fc3f7;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.5)"></div>',iconSize:[18,18],iconAnchor:[9,9]})
-      }).addTo(map).bindPopup('<b>My Device</b>');
-    }
-    map.setView([lat,lng],15);
-    if(deviceId){
-      fetch(API+'/api/locations',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({device_id:deviceId,latitude:lat,longitude:lng,accuracy:acc,speed:spd,altitude:pos.coords.altitude})
-      }).catch(function(){});
-    }
-  },function(err){console.warn('GPS error:',err.message)},{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
-}
-
 function updateDevices(a){
   var now=Date.now();
   for(var i=0;i<a.length;i++){
-    var d=a[i];if(d.latitude==null||d.id===deviceId)continue;
+    var d=a[i];if(d.latitude==null)continue;
     var latlng=[d.latitude,d.longitude];
     if(markers[d.id]){
       markers[d.id].setLatLng(latlng);

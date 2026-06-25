@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Switch, Alert,
+  View, Text, StyleSheet, TouchableOpacity, Switch,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { api } from '../api';
+import { startNativeGps, stopNativeGps } from '../services/NativeGpsService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function MapScreen({ user, onLogout }) {
@@ -27,8 +28,7 @@ export default function MapScreen({ user, onLogout }) {
 
   useEffect(() => {
     if (ready && deviceName && webViewRef.current) {
-      const token = AsyncStorage.getItem('token');
-      token.then(t => {
+      AsyncStorage.getItem('token').then(t => {
         webViewRef.current.postMessage(JSON.stringify({
           type: 'init', deviceId: deviceName, token: t,
         }));
@@ -36,11 +36,25 @@ export default function MapScreen({ user, onLogout }) {
     }
   }, [ready, deviceName]);
 
+  const onLocation = useCallback(async (loc) => {
+    const { latitude, longitude, accuracy, speed, altitude } = loc;
+    webViewRef.current?.postMessage(JSON.stringify({
+      type: 'myLocation', latitude, longitude, accuracy,
+    }));
+    await api('POST', '/api/locations', {
+      device_id: deviceName,
+      latitude, longitude, accuracy, speed, altitude,
+    });
+  }, [deviceName]);
+
   function toggleTracking() {
     if (tracking) {
+      stopNativeGps();
       webViewRef.current?.postMessage(JSON.stringify({ type: 'stopTracking' }));
       setTracking(false);
     } else {
+      const ok = startNativeGps(onLocation);
+      if (!ok) return;
       webViewRef.current?.postMessage(JSON.stringify({ type: 'startTracking' }));
       setTracking(true);
     }
@@ -65,7 +79,7 @@ export default function MapScreen({ user, onLogout }) {
         geolocationEnabled={true}
       />
 
-        <View style={styles.controls}>
+      <View style={styles.controls}>
         <View style={styles.trackingRow}>
           <Text style={styles.trackingLabel}>Track this device</Text>
           <Switch
