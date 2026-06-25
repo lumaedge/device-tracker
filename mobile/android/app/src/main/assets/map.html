@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link rel="stylesheet" href="https://device-tracker-production-c455.up.railway.app/vendor/leaflet.css">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;background:#1a1a2e}
+    #map{height:100%;width:100%}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://device-tracker-production-c455.up.railway.app/vendor/leaflet.js"></script>
+  <script>
+    var map=L.map('map',{zoomControl:false}).setView([20,0],2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OSM'}).addTo(map);
+    var markers={},circles={},myMarker=null;
+
+    window.addEventListener('message',function(e){
+      try{
+        var d=JSON.parse(e.data);
+        if(d.type==='init'||d.type==='update'){
+          if(d.devices)updateDevices(d.devices);
+          if(d.geofences)updateGeofences(d.geofences);
+          if(d.myLocation)updateMyLocation(d.myLocation);
+        }
+      }catch(_){}
+    });
+
+    function updateMyLocation(l){
+      if(myMarker){
+        myMarker.setLatLng([l.latitude,l.longitude]);
+      }else{
+        myMarker=L.marker([l.latitude,l.longitude],{
+          icon:L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:#4fc3f7;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.5)"></div>',iconSize:[18,18],iconAnchor:[9,9]})
+        }).addTo(map).bindPopup('<b>My Device</b>');
+      }
+      map.setView([l.latitude,l.longitude],15);
+    }
+
+    function updateDevices(a){
+      var now=Date.now();
+      for(var i=0;i<a.length;i++){
+        var d=a[i];
+        if(d.latitude==null)continue;
+        var latlng=[d.latitude,d.longitude];
+        var lastSeen=d.last_seen?new Date(d.last_seen+'Z').getTime():0;
+        var online=(now-lastSeen)<300000;
+        if(markers[d.id]){
+          markers[d.id].setLatLng(latlng);
+        }else{
+          markers[d.id]=L.marker(latlng,{icon:mkIcon(d.battery)}).addTo(map).bindPopup('<b>'+esc(d.name)+'</b>');
+        }
+      }
+    }
+
+    function updateGeofences(a){
+      for(var k in circles){map.removeLayer(circles[k])}
+      for(var i=0;i<a.length;i++){
+        var g=a[i];
+        circles[g.id]=L.circle([g.latitude,g.longitude],{radius:g.radius_meters,color:'#e94560',fillColor:'#e94560',fillOpacity:.1,weight:2}).addTo(map).bindPopup('<b>'+esc(g.name)+'</b>');
+      }
+    }
+
+    function mkIcon(b){
+      var c='#4fc3f7',bt=b!=null?Math.round(b):50;
+      return L.divIcon({className:'',html:'<div style="width:26px;height:26px;border-radius:50%;background:'+c+';border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">'+bt+'%</div>',iconSize:[26,26],iconAnchor:[13,13]});
+    }
+
+    function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+  </script>
+</body>
+</html>
