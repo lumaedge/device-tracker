@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Switch,
+  View, Text, StyleSheet, TouchableOpacity,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { api } from '../api';
-import { startNativeGps, stopNativeGps } from '../services/NativeGpsService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const TRACK_URL = 'https://device-tracker-production-c455.up.railway.app/track.html';
+
 export default function MapScreen({ user, onLogout }) {
-  const [tracking, setTracking] = useState(false);
   const [deviceName, setDeviceName] = useState('');
-  const [ready, setReady] = useState(false);
+  const [uri, setUri] = useState(null);
   const webViewRef = useRef(null);
 
   useEffect(() => {
@@ -22,43 +22,10 @@ export default function MapScreen({ user, onLogout }) {
         await api('POST', '/api/devices', { id, name: `${user.name}'s Phone` });
       }
       setDeviceName(id);
-      setReady(true);
+      const token = await AsyncStorage.getItem('token');
+      setUri(`${TRACK_URL}?device_id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}`);
     })();
   }, [user]);
-
-  useEffect(() => {
-    if (ready && deviceName && webViewRef.current) {
-      AsyncStorage.getItem('token').then(t => {
-        webViewRef.current.postMessage(JSON.stringify({
-          type: 'init', deviceId: deviceName, token: t,
-        }));
-      });
-    }
-  }, [ready, deviceName]);
-
-  const onLocation = useCallback(async (loc) => {
-    const { latitude, longitude, accuracy, speed, altitude } = loc;
-    webViewRef.current?.postMessage(JSON.stringify({
-      type: 'myLocation', latitude, longitude, accuracy,
-    }));
-    await api('POST', '/api/locations', {
-      device_id: deviceName,
-      latitude, longitude, accuracy, speed, altitude,
-    });
-  }, [deviceName]);
-
-  function toggleTracking() {
-    if (tracking) {
-      stopNativeGps();
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'stopTracking' }));
-      setTracking(false);
-    } else {
-      const ok = startNativeGps(onLocation);
-      if (!ok) return;
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'startTracking' }));
-      setTracking(true);
-    }
-  }
 
   return (
     <View style={styles.container}>
@@ -69,33 +36,27 @@ export default function MapScreen({ user, onLogout }) {
         </TouchableOpacity>
       </View>
 
-      <WebView
-        ref={webViewRef}
-        source={{ uri: 'file:///android_asset/map.html' }}
-        style={styles.map}
-        originWhitelist={['*']}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        geolocationEnabled={true}
-      />
-
-      <View style={styles.controls}>
-        <View style={styles.trackingRow}>
-          <Text style={styles.trackingLabel}>Track this device</Text>
-          <Switch
-            value={tracking}
-            onValueChange={toggleTracking}
-            trackColor={{ false: '#333', true: '#e94560' }}
-            thumbColor={tracking ? '#fff' : '#888'}
-          />
+      {uri ? (
+        <WebView
+          ref={webViewRef}
+          source={{ uri }}
+          style={styles.map}
+          originWhitelist={['*']}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          geolocationEnabled={true}
+        />
+      ) : (
+        <View style={styles.loading}>
+          <Text style={{ color: '#888' }}>Initializing...</Text>
         </View>
+      )}
 
-        {deviceName && (
-          <View style={styles.deviceInfo}>
-            <Text style={styles.deviceName}>Device: {deviceName}</Text>
-          </View>
-        )}
-      </View>
+      {deviceName && (
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Device: {deviceName}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -109,14 +70,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', color: '#e94560' },
   logout: { color: '#4fc3f7', fontSize: 14 },
   map: { flex: 1 },
-  controls: {
-    backgroundColor: '#16213e', padding: 16, borderTopWidth: 1, borderTopColor: '#0f3460',
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  footer: {
+    padding: 12, backgroundColor: '#16213e', borderTopWidth: 1, borderTopColor: '#0f3460',
   },
-  trackingRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 12,
-  },
-  trackingLabel: { color: '#e0e0e0', fontSize: 15 },
-  deviceInfo: { marginBottom: 8 },
-  deviceName: { color: '#e0e0e0', fontSize: 14, fontWeight: '600' },
+  footerText: { color: '#888', fontSize: 13, textAlign: 'center' },
 });
