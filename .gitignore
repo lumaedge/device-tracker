@@ -4,4 +4,7 @@ data.db-wal
 data.db-shm
 .env
 DeviceTracker.apk
-mobile/
+mobile/node_modules/
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/ios/Pods/
