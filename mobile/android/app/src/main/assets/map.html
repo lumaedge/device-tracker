@@ -27,7 +27,10 @@ window.addEventListener('message',function(e){
       token=d.token;
       if(d.devices)updateDevices(d.devices);
       if(d.geofences)updateGeofences(d.geofences);
+    }else if(d.type==='startTracking'){
       startGps();
+    }else if(d.type==='stopTracking'){
+      if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null}
     }
   }catch(_){}
 });

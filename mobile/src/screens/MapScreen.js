@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Alert,
+  View, Text, StyleSheet, TouchableOpacity, Switch, Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { api } from '../api';
@@ -36,6 +36,16 @@ export default function MapScreen({ user, onLogout }) {
     }
   }, [ready, deviceName]);
 
+  function toggleTracking() {
+    if (tracking) {
+      webViewRef.current?.postMessage(JSON.stringify({ type: 'stopTracking' }));
+      setTracking(false);
+    } else {
+      webViewRef.current?.postMessage(JSON.stringify({ type: 'startTracking' }));
+      setTracking(true);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -55,12 +65,15 @@ export default function MapScreen({ user, onLogout }) {
         geolocationEnabled={true}
       />
 
-      <View style={styles.controls}>
+        <View style={styles.controls}>
         <View style={styles.trackingRow}>
           <Text style={styles.trackingLabel}>Track this device</Text>
-          <Text style={{ color: tracking ? '#4ade80' : '#888', fontSize: 13 }}>
-            {tracking ? 'Active' : 'Off'}
-          </Text>
+          <Switch
+            value={tracking}
+            onValueChange={toggleTracking}
+            trackColor={{ false: '#333', true: '#e94560' }}
+            thumbColor={tracking ? '#fff' : '#888'}
+          />
         </View>
 
         {deviceName && (
